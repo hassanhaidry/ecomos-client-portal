@@ -1,4 +1,5 @@
 "use client";
+import { useState, useEffect } from "react";
 import {
   BarChart,
   Bar,
@@ -18,30 +19,22 @@ import {
   FileText,
   CheckCircle,
 } from "lucide-react";
-
-const revenueData = [
-  { month: "Sep", revenue: 4200 },
-  { month: "Oct", revenue: 5800 },
-  { month: "Nov", revenue: 5100 },
-  { month: "Dec", revenue: 7200 },
-  { month: "Jan", revenue: 6400 },
-  { month: "Feb", revenue: 8240 },
-];
-
-const performanceRows = [
-  { month: "February 2026", revenue: "$8,240", orders: 347, roi: "18.4%", status: "On Track" },
-  { month: "January 2026", revenue: "$6,400", orders: 281, roi: "16.2%", status: "On Track" },
-  { month: "December 2025", revenue: "$7,200", orders: 315, roi: "17.8%", status: "On Track" },
-  { month: "November 2025", revenue: "$5,100", orders: 224, roi: "14.1%", status: "Optimizing" },
-  { month: "October 2025", revenue: "$5,800", orders: 258, roi: "15.6%", status: "On Track" },
-  { month: "September 2025", revenue: "$4,200", orders: 189, roi: "12.3%", status: "Optimizing" },
-];
+import { SkeletonCard, SkeletonRow, SkeletonChart } from "@/components/LoadingSkeleton";
+import type { SheetResponse, MonthlyData } from "@/types";
 
 const statusStyle = (status: string) => {
   if (status === "On Track") return { background: "#D1FAE5", color: "#065F46" };
   if (status === "Optimizing") return { background: "#FEF3C7", color: "#92400E" };
   return { background: "#F3F4F6", color: "#374151" };
 };
+
+function getStatus(roi: number): string {
+  return roi >= 15 ? "On Track" : "Optimizing";
+}
+
+function fmt(n: number): string {
+  return `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
 
 const notifications = [
   {
@@ -73,78 +66,122 @@ const notifications = [
   },
 ];
 
-const kpis = [
-  {
-    label: "Revenue This Month",
-    value: "$8,240",
-    trend: "+12%",
-    sub: "vs last month",
-    icon: DollarSign,
-    iconBg: "#F5F1FF",
-    iconColor: "#6D28D9",
-  },
-  {
-    label: "Total Orders",
-    value: "347",
-    trend: "+8%",
-    sub: "vs last month",
-    icon: ShoppingBag,
-    iconBg: "#EFF6FF",
-    iconColor: "#3B82F6",
-  },
-  {
-    label: "ROI This Month",
-    value: "18.4%",
-    trend: "Target: 15–25%",
-    sub: "within target range",
-    icon: TrendingUp,
-    iconBg: "#D1FAE5",
-    iconColor: "#059669",
-  },
-  {
-    label: "All-Time Revenue",
-    value: "$47,480",
-    trend: "Since Nov 2025",
-    sub: "cumulative",
-    icon: Award,
-    iconBg: "#FEF3C7",
-    iconColor: "#D97706",
-  },
-];
-
 export default function DashboardPage() {
+  const [data, setData] = useState<SheetResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/sheets")
+      .then((res) => {
+        if (!res.ok) throw new Error(`API error ${res.status}`);
+        return res.json();
+      })
+      .then((json: SheetResponse) => {
+        setData(json);
+        setLoading(false);
+      })
+      .catch((err: Error) => {
+        setError(err.message);
+        setLoading(false);
+      });
+  }, []);
+
+  const lastMonth: MonthlyData | null =
+    data && data.monthly.length > 0
+      ? data.monthly[data.monthly.length - 1]
+      : null;
+
+  const kpis = [
+    {
+      label: "Revenue This Month",
+      value: lastMonth ? fmt(lastMonth.revenue) : "—",
+      trend: lastMonth ? `${lastMonth.roi.toFixed(1)}% ROI` : "—",
+      icon: DollarSign,
+      iconBg: "#F5F1FF",
+      iconColor: "#6D28D9",
+    },
+    {
+      label: "Total Orders",
+      value: lastMonth ? lastMonth.orders.toString() : "—",
+      trend: lastMonth ? lastMonth.month : "—",
+      icon: ShoppingBag,
+      iconBg: "#EFF6FF",
+      iconColor: "#3B82F6",
+    },
+    {
+      label: "ROI This Month",
+      value: lastMonth ? `${lastMonth.roi.toFixed(2)}%` : "—",
+      trend: "Target: 15–25%",
+      icon: TrendingUp,
+      iconBg: "#D1FAE5",
+      iconColor: "#059669",
+    },
+    {
+      label: "All-Time Revenue",
+      value: data ? fmt(data.totals.totalRevenue) : "—",
+      trend: data ? `${data.monthly.length} months` : "—",
+      icon: Award,
+      iconBg: "#FEF3C7",
+      iconColor: "#D97706",
+    },
+  ];
+
+  const chartData =
+    data?.monthly.map((m) => ({
+      month: m.month.slice(0, 3),
+      revenue: m.revenue,
+    })) ?? [];
+
+  const chartSubtitle =
+    data && data.monthly.length >= 2
+      ? `${data.monthly[0].month} – ${data.monthly[data.monthly.length - 1].month}`
+      : "Monthly data";
+
   return (
     <div className="flex flex-col gap-8">
       {/* KPI Cards */}
       <div className="grid grid-cols-4 gap-5">
-        {kpis.map((kpi) => (
-          <div
-            key={kpi.label}
-            className="bg-white rounded-2xl p-5 flex flex-col gap-4"
-            style={{ border: "1px solid #E0D8F8" }}
-          >
-            <div className="flex items-start justify-between">
+        {loading
+          ? Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)
+          : kpis.map((kpi) => (
               <div
-                className="w-11 h-11 rounded-xl flex items-center justify-center"
-                style={{ background: kpi.iconBg }}
+                key={kpi.label}
+                className="bg-white rounded-2xl p-5 flex flex-col gap-4"
+                style={{ border: "1px solid #E0D8F8" }}
               >
-                <kpi.icon size={20} style={{ color: kpi.iconColor }} />
+                <div className="flex items-start justify-between">
+                  <div
+                    className="w-11 h-11 rounded-xl flex items-center justify-center"
+                    style={{ background: kpi.iconBg }}
+                  >
+                    <kpi.icon size={20} style={{ color: kpi.iconColor }} />
+                  </div>
+                  <div
+                    className="flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full"
+                    style={{ background: "#D1FAE5", color: "#065F46" }}
+                  >
+                    <ArrowUpRight size={12} />
+                    {kpi.trend}
+                  </div>
+                </div>
+                <div>
+                  <p className="text-2xl font-bold" style={{ color: "#1A1A2E" }}>{kpi.value}</p>
+                  <p className="text-sm font-medium mt-0.5" style={{ color: "#6B7280" }}>{kpi.label}</p>
+                </div>
               </div>
-              <div
-                className="flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full"
-                style={{ background: "#D1FAE5", color: "#065F46" }}
-              >
-                <ArrowUpRight size={12} />
-                {kpi.trend}
-              </div>
-            </div>
-            <div>
-              <p className="text-2xl font-bold" style={{ color: "#1A1A2E" }}>{kpi.value}</p>
-              <p className="text-sm font-medium mt-0.5" style={{ color: "#6B7280" }}>{kpi.label}</p>
-            </div>
-          </div>
-        ))}
+            ))}
       </div>
+
+      {/* Error banner */}
+      {error && (
+        <div
+          className="rounded-xl px-5 py-4 text-sm font-medium"
+          style={{ background: "#FEF2F2", color: "#991B1B", border: "1px solid #FECACA" }}
+        >
+          Could not load live data: {error}. Showing cached or placeholder values.
+        </div>
+      )}
 
       {/* Chart + Store Info */}
       <div className="grid grid-cols-5 gap-5">
@@ -156,43 +193,47 @@ export default function DashboardPage() {
           <div className="flex items-center justify-between mb-6">
             <div>
               <h2 className="text-base font-semibold" style={{ color: "#1A1A2E" }}>Monthly Revenue</h2>
-              <p className="text-xs" style={{ color: "#9CA3AF" }}>Sep 2025 – Feb 2026</p>
+              <p className="text-xs" style={{ color: "#9CA3AF" }}>{chartSubtitle}</p>
             </div>
             <span
               className="text-xs font-medium px-2.5 py-1 rounded-full"
               style={{ background: "#F5F1FF", color: "#6D28D9" }}
             >
-              Last 6 months
+              {data ? `${data.monthly.length} months` : "Loading…"}
             </span>
           </div>
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={revenueData} barSize={32}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" vertical={false} />
-              <XAxis
-                dataKey="month"
-                tick={{ fontSize: 12, fill: "#9CA3AF" }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <YAxis
-                tick={{ fontSize: 12, fill: "#9CA3AF" }}
-                axisLine={false}
-                tickLine={false}
-                tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
-              />
-              <Tooltip
-                formatter={(value: number) => [`$${value.toLocaleString()}`, "Revenue"]}
-                contentStyle={{
-                  borderRadius: 12,
-                  border: "1px solid #E0D8F8",
-                  fontSize: 12,
-                  color: "#1A1A2E",
-                }}
-                cursor={{ fill: "#F5F1FF" }}
-              />
-              <Bar dataKey="revenue" fill="#6D28D9" radius={[6, 6, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+          {loading ? (
+            <SkeletonChart />
+          ) : (
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={chartData} barSize={32}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" vertical={false} />
+                <XAxis
+                  dataKey="month"
+                  tick={{ fontSize: 12, fill: "#9CA3AF" }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis
+                  tick={{ fontSize: 12, fill: "#9CA3AF" }}
+                  axisLine={false}
+                  tickLine={false}
+                  tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
+                />
+                <Tooltip
+                  formatter={(value: number | undefined) => [`$${(value ?? 0).toLocaleString()}`, "Revenue"]}
+                  contentStyle={{
+                    borderRadius: 12,
+                    border: "1px solid #E0D8F8",
+                    fontSize: 12,
+                    color: "#1A1A2E",
+                  }}
+                  cursor={{ fill: "#F5F1FF" }}
+                />
+                <Bar dataKey="revenue" fill="#6D28D9" radius={[6, 6, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
         </div>
 
         {/* Store Info */}
@@ -281,28 +322,36 @@ export default function DashboardPage() {
               </tr>
             </thead>
             <tbody>
-              {performanceRows.map((row, i) => (
-                <tr
-                  key={i}
-                  className="border-t transition-colors"
-                  style={{ borderColor: "#F3F4F6" }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = "#FAFAF8")}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-                >
-                  <td className="px-6 py-4 text-sm font-medium" style={{ color: "#1A1A2E" }}>{row.month}</td>
-                  <td className="px-6 py-4 text-sm font-semibold" style={{ color: "#1A1A2E" }}>{row.revenue}</td>
-                  <td className="px-6 py-4 text-sm" style={{ color: "#6B7280" }}>{row.orders}</td>
-                  <td className="px-6 py-4 text-sm font-medium" style={{ color: "#6D28D9" }}>{row.roi}</td>
-                  <td className="px-6 py-4">
-                    <span
-                      className="text-xs font-medium px-2.5 py-1 rounded-full"
-                      style={statusStyle(row.status)}
-                    >
-                      {row.status}
-                    </span>
-                  </td>
-                </tr>
-              ))}
+              {loading
+                ? Array.from({ length: 6 }).map((_, i) => <SkeletonRow key={i} />)
+                : (data?.monthly ?? [])
+                    .slice()
+                    .reverse()
+                    .map((row, i) => {
+                      const status = getStatus(row.roi);
+                      return (
+                        <tr
+                          key={i}
+                          className="border-t transition-colors"
+                          style={{ borderColor: "#F3F4F6" }}
+                          onMouseEnter={(e) => (e.currentTarget.style.background = "#FAFAF8")}
+                          onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                        >
+                          <td className="px-6 py-4 text-sm font-medium" style={{ color: "#1A1A2E" }}>{row.month}</td>
+                          <td className="px-6 py-4 text-sm font-semibold" style={{ color: "#1A1A2E" }}>{fmt(row.revenue)}</td>
+                          <td className="px-6 py-4 text-sm" style={{ color: "#6B7280" }}>{row.orders}</td>
+                          <td className="px-6 py-4 text-sm font-medium" style={{ color: "#6D28D9" }}>{row.roi.toFixed(2)}%</td>
+                          <td className="px-6 py-4">
+                            <span
+                              className="text-xs font-medium px-2.5 py-1 rounded-full"
+                              style={statusStyle(status)}
+                            >
+                              {status}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
             </tbody>
           </table>
         </div>

@@ -1,36 +1,82 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# EcomOS Client Portal
 
-## Getting Started
+Investor-facing dashboard for Digital Shaheens — a managed TikTok Shop service. Clients can track their store performance, view invoices, receive notifications, and submit support requests.
 
-First, run the development server:
+## Stack
+
+- **Next.js 15** (App Router)
+- **React 19** with TypeScript (strict mode)
+- **Tailwind CSS v4** — utility classes + inline styles for colors
+- **Recharts** — bar charts for revenue visualization
+- **Lucide React** — SVG icons
+- **Google Sheets API** — live performance data from client spreadsheets
+- **Supabase** — Postgres database for clients, notifications, invoices, support tickets
+- **Vercel** — deployment
+
+## Setup
 
 ```bash
+npm install
+cp .env.local.example .env.local   # fill in your values
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Environment Variables
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| Variable | Description |
+|---|---|
+| `NEXT_PUBLIC_GOOGLE_SHEETS_API_KEY` | Google Sheets API key (public reads) |
+| `GOOGLE_SHEETS_API_KEY` | Same key for server-side fetch |
+| `DEFAULT_SHEET_ID` | Default Google Sheet ID (Deal Hoper sheet) |
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon/public key |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key (server only) |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Google Sheets Data Structure
 
-## Learn More
+Sheet: `1H8q41yDxNIXsCWo1Xv1raQuF5NyuRzrAwlWDcBFY0EU`
 
-To learn more about Next.js, take a look at the following resources:
+### DASHBOARD tab
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+**Daily data** — columns A:H starting row 6:
+`Date | Listings | Orders | Our Earnings | Total Purchase | TikTok Fees | Profit | ROI`
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+**Monthly summary** — columns K:S starting row 6:
+`Month | (empty) | Listings | Orders | Our Earnings | Total Purchase | TikTok Fees | Profit | ROI`
 
-## Deploy on Vercel
+### Profit Sheet
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Full order-level ledger with columns:
+`Month | Status On TTS | Status On Supplier | Date | Ship By Date | TTS Customer Name | Order ID | Product Link | Supplier Order No | Carrier | Tracking ID | You Earned | Subtotal | COGS | TikTok Fees | Refunds | Loss | Net Profit | 50% Split | Comments | ROI%`
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## API Routes
+
+### `GET /api/sheets?sheetId=<id>`
+
+Returns parsed monthly + daily data from the Google Sheet.
+
+**Response:**
+```json
+{
+  "monthly": [
+    { "month": "January", "listings": 24, "orders": 108, "revenue": 1694.40, "cogs": 1265.38, "fees": 0, "profit": 429.02, "roi": 33.90 }
+  ],
+  "daily": [],
+  "totals": { "totalRevenue": 17812.37, "totalOrders": 1013, "totalProfit": 2810.48, "avgRoi": 18.73 }
+}
+```
+
+## Supabase Schema
+
+Run `supabase/schema.sql` against your Supabase project to create tables: `clients`, `notifications`, `invoices`, `support_tickets`.
+
+## Pages
+
+| Route | Description |
+|---|---|
+| `/login` | Login page |
+| `/signup` | Onboarding signup |
+| `/dashboard` | Main KPI dashboard (live Google Sheets data) |
+| `/dashboard/invoices` | Monthly invoices |
+| `/dashboard/notifications` | Policy, invoice, milestone alerts |
+| `/dashboard/support` | Support tickets + FAQ |
