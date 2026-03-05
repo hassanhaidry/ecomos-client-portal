@@ -58,6 +58,11 @@ export default function SignupPage() {
     sheetLink: "",
   });
 
+  const extractedSheetId = (() => {
+    const match = form.sheetLink.match(/\/d\/([^/]+)/);
+    return match ? match[1] : null;
+  })();
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
@@ -69,9 +74,7 @@ export default function SignupPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const match = form.sheetLink.match(/\/d\/([^/]+)/);
-    const sheetId = match ? match[1] : null;
-    console.log("Sheet ID:", sheetId);
+    console.log("Sheet ID:", extractedSheetId);
     router.push("/dashboard");
   };
 
@@ -281,7 +284,7 @@ export default function SignupPage() {
                   onMouseEnter={(e) => (e.currentTarget.style.background = "#5B21B6")}
                   onMouseLeave={(e) => (e.currentTarget.style.background = "#6D28D9")}
                 >
-                  Continue
+                  Continue →
                 </button>
               </form>
             ) : (
@@ -306,9 +309,28 @@ export default function SignupPage() {
                     onFocus={(e) => (e.target.style.borderColor = "#6D28D9")}
                     onBlur={(e) => (e.target.style.borderColor = "#E0D8F8")}
                   />
-                  <p style={{ fontSize: 12, color: "#9CA3AF", marginTop: 2 }}>
-                    Sharing must be set to Anyone with the link can view
-                  </p>
+                  {extractedSheetId && (
+                    <span
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 6,
+                        marginTop: 4,
+                        background: "#D1FAE5",
+                        color: "#065F46",
+                        border: "1px solid #A7F3D0",
+                        padding: "4px 12px",
+                        borderRadius: 999,
+                        fontSize: 12,
+                        fontWeight: 500,
+                        alignSelf: "flex-start",
+                        fontFamily: "monospace",
+                      }}
+                    >
+                      <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#16A34A", display: "inline-block", flexShrink: 0 }} />
+                      Sheet ID: {extractedSheetId.slice(0, 20)}{extractedSheetId.length > 20 ? "..." : ""}
+                    </span>
+                  )}
                 </div>
 
                 {/* How-to guide */}
@@ -327,7 +349,7 @@ export default function SignupPage() {
                   {[
                     "Open your Google Sheet in browser",
                     "Click Share > Change to Anyone with the link > Viewer",
-                    "Copy the link and paste above",
+                    "Paste the link above",
                   ].map((step, i) => (
                     <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
                       <div
@@ -356,7 +378,7 @@ export default function SignupPage() {
                 <button
                   type="submit"
                   style={{
-                    background: "#6D28D9",
+                    background: "#3D0F8F",
                     color: "white",
                     border: "none",
                     borderRadius: 12,
@@ -366,14 +388,14 @@ export default function SignupPage() {
                     cursor: "pointer",
                     width: "100%",
                   }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = "#5B21B6")}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = "#6D28D9")}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = "#2D0A6F")}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "#3D0F8F")}
                 >
-                  Create My Account
+                  Create Account
                 </button>
 
                 <p style={{ textAlign: "center", fontSize: 12, color: "#9CA3AF" }}>
-                  Your account will be reviewed and activated within 24 hours
+                  ⏱ Your account is reviewed within 24 hours
                 </p>
 
                 <button
